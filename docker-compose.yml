@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Veritabanı Servisi
+  flowengine-db:
+    image: postgres:15-alpine
+    container_name: flowengine_postgres
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - POSTGRES_DB=FlowEngineDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  # RabbitMQ Servisi (İleride lazım olacak, şimdiden kuralım hazır olsun)
+  flowengine-broker:
+    image: rabbitmq:3-management
+    container_name: flowengine_rabbitmq
+    ports:
+      - "5672:5672"   # Mesajlaşma portu
+      - "15672:15672" # Yönetim paneli portu (http://localhost:15672)
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    restart: always
+
+volumes:
+  postgres_data:
