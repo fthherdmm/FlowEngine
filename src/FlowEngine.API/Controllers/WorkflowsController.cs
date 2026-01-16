@@ -1,5 +1,7 @@
 ﻿using FlowEngine.Application.DTOs;
+using FlowEngine.Application.IntegrationEvents;
 using FlowEngine.Application.Interfaces;
+using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FlowEngine.API.Controllers
@@ -9,10 +11,12 @@ namespace FlowEngine.API.Controllers
     public class WorkflowsController : ControllerBase
     {
         private readonly IWorkflowService _service;
+        private readonly IPublishEndpoint _publishEndpoint;
 
-        public WorkflowsController(IWorkflowService service)
+        public WorkflowsController(IWorkflowService service, IPublishEndpoint publishEndpoint)
         {
             _service = service;
+            _publishEndpoint = publishEndpoint;
         }
 
         [HttpPost]
@@ -21,6 +25,9 @@ namespace FlowEngine.API.Controllers
             try 
             {
                 var id = await _service.CreateWorkflowAsync(dto);
+                
+                await _publishEndpoint.Publish(new WorkflowCreatedEvent(id, dto.Name));
+                
                 return CreatedAtAction(nameof(GetById), new { id = id }, new { id = id });
             }
             catch (Exception ex)

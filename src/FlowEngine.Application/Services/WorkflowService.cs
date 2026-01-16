@@ -22,7 +22,7 @@ namespace FlowEngine.Application.Services
         {
             // 1. DTO -> Domain Entity Dönüşümü
             // Burada Workflow constructor'ını kullanarak kurallara uygun nesne oluşturuyoruz.
-            var workflow = new Workflow(dto.Name, dto.TriggerType, dto.TriggerSettings);
+            var workflow = new Workflow(dto.Name, dto.TriggerType ?? "Manual", dto.TriggerSettings ?? "{}");
 
             // 2. Adımları Ekleme
             foreach (var stepDto in dto.Steps)
