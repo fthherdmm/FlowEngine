@@ -24,10 +24,16 @@ namespace FlowEngine.API.Controllers
         {
             try 
             {
+                // 1. Veritabanına Kaydet
                 var id = await _service.CreateWorkflowAsync(dto);
-                
-                await _publishEndpoint.Publish(new WorkflowCreatedEvent(id, dto.Name));
-                
+        
+                // 2. Sadece "Manual" ise hemen tetikle.
+                // Eğer "Timer" ise RabbitMQ'ya mesaj atma; onu Worker'daki Scheduler bulup çalıştıracak.
+                if (dto.TriggerType == "Manual")
+                {
+                    await _publishEndpoint.Publish(new WorkflowCreatedEvent(id, dto.Name));
+                }
+        
                 return CreatedAtAction(nameof(GetById), new { id = id }, new { id = id });
             }
             catch (Exception ex)

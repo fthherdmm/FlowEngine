@@ -1,0 +1,25 @@
+# --- Genel Derleme Çıktıları ---
+**/bin/
+**/obj/
+**/TestResults/
+
+# --- IDE Klasörleri (Gereksizler) ---
+# Visual Studio
+**/.vs/
+# VS Code
+**/.vscode/
+# Rider (IntelliJ) <-- EKLENEN KISIM
+**/.idea/
+
+# --- Kullanıcıya Özel Ayarlar ---
+**/*.user
+**/*.suo
+**/*.userprefs
+**/*.sln.DotSettings.user
+
+# --- Diğer ---
+**/.env
+**/.git/
+**/.gitignore
+**/Dockerfile
+**/docker-compose.yml

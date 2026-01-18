@@ -2,6 +2,7 @@
 using FlowEngine.Application.Interfaces.Repositories;
 using FlowEngine.Infrastructure.Persistence;
 using FlowEngine.Infrastructure.Persistence.Repositories;
+using FlowEngine.Infrastructure.Services;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -26,25 +27,29 @@ namespace FlowEngine.Infrastructure
             // 3. MassTransit (RabbitMQ) Ayarları (Ortak + Özelleştirilebilir)
             services.AddMassTransit(x =>
             {
-                // Eğer çağıran yer (Worker) extra ayar yapmak isterse (Consumer eklemek gibi)
-                // buradaki action'ı çalıştır.
+                // 1. Worker tarafında eklediğin Consumer'ları buraya dahil ediyoruz
                 if (configureMassTransit != null)
                 {
                     configureMassTransit(x);
                 }
 
+                // 2. RabbitMQ Bağlantı Ayarı (DÜZELTMEN GEREKEN YER BURASI)
                 x.UsingRabbitMq((context, cfg) =>
                 {
-                    cfg.Host("localhost", "/", h =>
+                    // Docker ise "rabbitmq", local ise "localhost" olsun diye ayarlardan okuyoruz
+                    var rabbitHost = configuration["RabbitMQ:HostName"] ?? "localhost";
+
+                    cfg.Host(rabbitHost, "/", h =>
                     {
                         h.Username("guest");
                         h.Password("guest");
                     });
 
-                    // MassTransit'in otomatik endpoint yapılandırması
                     cfg.ConfigureEndpoints(context);
                 });
             });
+            
+            services.AddTransient<IEmailSender, EmailSender>();
 
             return services;
         }

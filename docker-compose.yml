@@ -1,31 +1,88 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Veritabanı Servisi
-  flowengine-db:
-    image: postgres:15-alpine
-    container_name: flowengine_postgres
+  # 1. VERİTABANI (PostgreSQL)
+  postgres:
+    image: postgres:16
+    container_name: flowengine-db
     environment:
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=password123
-      - POSTGRES_DB=FlowEngineDb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: FlowEngineDb
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: always
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - flow-network
+    # SAĞLIK KONTROLÜ: Veritabanı hazır mı?
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d FlowEngineDb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  # RabbitMQ Servisi (İleride lazım olacak, şimdiden kuralım hazır olsun)
-  flowengine-broker:
+  # 2. MESAJ KUYRUĞU (RabbitMQ)
+  rabbitmq:
     image: rabbitmq:3-management
-    container_name: flowengine_rabbitmq
+    container_name: flowengine-mq
     ports:
-      - "5672:5672"   # Mesajlaşma portu
-      - "15672:15672" # Yönetim paneli portu (http://localhost:15672)
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - flow-network
+    # SAĞLIK KONTROLÜ: RabbitMQ ping'e cevap veriyor mu?
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # 3. BACKEND API
+  api:
+    build:
+      context: .
+      dockerfile: src/FlowEngine.API/Dockerfile
+    container_name: flowengine-api
+    ports:
+      - "5000:8080"
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
-    restart: always
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      # Veritabanı ve RabbitMQ için servis isimlerini kullanıyoruz
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=FlowEngineDb;Username=admin;Password=password123
+      - RabbitMQ__HostName=rabbitmq
+    depends_on:
+      postgres:
+        condition: service_healthy # DB sağlıklı olana kadar başlama
+      rabbitmq:
+        condition: service_healthy # MQ sağlıklı olana kadar başlama
+    networks:
+      - flow-network
+    restart: on-failure # Hata verirse tekrar dene
+
+  # 4. WORKER SERVICE
+  worker:
+    build:
+      context: .
+      dockerfile: src/FlowEngine.Worker/Dockerfile
+    container_name: flowengine-worker
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=FlowEngineDb;Username=admin;Password=password123
+      - RabbitMQ__HostName=rabbitmq
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      api:
+        condition: service_started
+    networks:
+      - flow-network
+    restart: on-failure
+
+networks:
+  flow-network:
+    driver: bridge
 
 volumes:
-  postgres_data:
+  pgdata:
